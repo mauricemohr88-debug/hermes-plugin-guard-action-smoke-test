@@ -9,7 +9,13 @@ import subprocess
 import sys
 
 
-def scan(path: Path, *, threshold: str = "high", report_format: str = "json"):
+def scan(
+    path: Path,
+    *,
+    threshold: str = "high",
+    report_format: str = "json",
+    hash_seed: int | None = None,
+):
     result = subprocess.run(
         [
             "hermes-plugin-guard",
@@ -24,6 +30,9 @@ def scan(path: Path, *, threshold: str = "high", report_format: str = "json"):
         text=True,
         encoding="utf-8",
         check=False,
+        env={**os.environ, "PYTHONHASHSEED": str(hash_seed)}
+        if hash_seed is not None
+        else None,
     )
     return result
 
@@ -62,14 +71,19 @@ def main() -> None:
         "HPG101" in {f["rule_id"] for f in payload["findings"]},
         "Dynamic execution rule must be present",
     )
-    informational = scan(risky, threshold="none")
+    informational = scan(risky, threshold="none", hash_seed=0)
     require(informational.returncode == 0, "Report-only mode must return exit 0")
     require(
         json.loads(informational.stdout)["summary"]["findings"] > 0,
         "Report-only mode must retain findings",
     )
-    repeat = scan(risky, threshold="none")
-    require(repeat.stdout == informational.stdout, "JSON output must be deterministic")
+    for seed in (1, 2, 3):
+        repeat = scan(risky, threshold="none", hash_seed=seed)
+        require(repeat.returncode == 0, f"Repeated scan failed: {repeat.stderr}")
+        require(
+            repeat.stdout == informational.stdout,
+            f"JSON output changed with Python hash seed {seed}",
+        )
     missing = scan(Path("samples/not-present"))
     require(missing.returncode == 2, "Missing target must return exit 2")
     sarif = scan(risky, threshold="none", report_format="sarif")
