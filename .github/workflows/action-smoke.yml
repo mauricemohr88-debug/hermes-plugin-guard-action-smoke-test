@@ -2,7 +2,7 @@ name: External Action Smoke Test
 
 on:
   push:
-    branches: [main]
+    branches: [main, candidate-cache-fix]
   workflow_dispatch:
 
 permissions:
@@ -28,21 +28,21 @@ jobs:
 
       - name: Clean plugin passes the published action
         id: clean
-        uses: mauricemohr88-debug/hermes-plugin-guard@857d881be77249c192c5fefa8254db186a7abbca # v0.2.1
+        uses: mauricemohr88-debug/hermes-plugin-guard-action-smoke-test/candidate-action@candidate-cache-fix
         with:
           path: samples/safe_plugin
 
       - name: Critical findings fail the published action
         id: risky
         continue-on-error: true
-        uses: mauricemohr88-debug/hermes-plugin-guard@857d881be77249c192c5fefa8254db186a7abbca # v0.2.1
+        uses: mauricemohr88-debug/hermes-plugin-guard-action-smoke-test/candidate-action@candidate-cache-fix
         with:
           path: samples/risky plugin
           fail-on: critical
 
       - name: Report-only mode preserves findings without failure
         id: informational
-        uses: mauricemohr88-debug/hermes-plugin-guard@857d881be77249c192c5fefa8254db186a7abbca # v0.2.1
+        uses: mauricemohr88-debug/hermes-plugin-guard-action-smoke-test/candidate-action@candidate-cache-fix
         with:
           path: samples/risky plugin
           fail-on: none
@@ -51,7 +51,7 @@ jobs:
       - name: Missing target fails the published action
         id: missing
         continue-on-error: true
-        uses: mauricemohr88-debug/hermes-plugin-guard@857d881be77249c192c5fefa8254db186a7abbca # v0.2.1
+        uses: mauricemohr88-debug/hermes-plugin-guard-action-smoke-test/candidate-action@candidate-cache-fix
         with:
           path: samples/not-present
 
@@ -62,4 +62,3 @@ jobs:
           INFORMATIONAL_OUTCOME: ${{ steps.informational.outcome }}
           MISSING_OUTCOME: ${{ steps.missing.outcome }}
         run: python scripts/verify_reports.py
-
