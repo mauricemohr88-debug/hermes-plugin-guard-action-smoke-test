@@ -1,0 +1,65 @@
+name: External Action Smoke Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  action-smoke:
+    name: Action on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out synthetic consumer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Clean plugin passes the published action
+        id: clean
+        uses: mauricemohr88-debug/hermes-plugin-guard@857d881be77249c192c5fefa8254db186a7abbca # v0.2.1
+        with:
+          path: samples/safe_plugin
+
+      - name: Critical findings fail the published action
+        id: risky
+        continue-on-error: true
+        uses: mauricemohr88-debug/hermes-plugin-guard@857d881be77249c192c5fefa8254db186a7abbca # v0.2.1
+        with:
+          path: samples/risky plugin
+          fail-on: critical
+
+      - name: Report-only mode preserves findings without failure
+        id: informational
+        uses: mauricemohr88-debug/hermes-plugin-guard@857d881be77249c192c5fefa8254db186a7abbca # v0.2.1
+        with:
+          path: samples/risky plugin
+          fail-on: none
+          format: json
+
+      - name: Missing target fails the published action
+        id: missing
+        continue-on-error: true
+        uses: mauricemohr88-debug/hermes-plugin-guard@857d881be77249c192c5fefa8254db186a7abbca # v0.2.1
+        with:
+          path: samples/not-present
+
+      - name: Assert expected action outcomes
+        env:
+          CLEAN_OUTCOME: ${{ steps.clean.outcome }}
+          RISKY_OUTCOME: ${{ steps.risky.outcome }}
+          INFORMATIONAL_OUTCOME: ${{ steps.informational.outcome }}
+          MISSING_OUTCOME: ${{ steps.missing.outcome }}
+        run: python scripts/verify_reports.py
+
